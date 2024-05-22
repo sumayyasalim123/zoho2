@@ -208,7 +208,7 @@
                                 <button class="btn btn-warning" onclick="toggleContent()"><i class="fas fa-solid fa-gear"></i> Customize Report</button>
                                 <div id="contentDiv" class="content">
                                     <h6 style="color: white;">Customize Report</h6>
-                                    <form action="{% url 'customize_salebyitem' %}" class="form reportCustomizeForm" method="post">
+                                    <form action="{% url 'customize_purchasebyitem' %}" class="form reportCustomizeForm" method="post">
                                       {% csrf_token%}  
                                       <div class="px-2">
                                             <label style="text-align:left ">From</label><br>
@@ -323,14 +323,14 @@
                                                                         </div><br><br>
                                                                     </div>
                                                                     <div class="row mb-2">
-                                                                        <div class="col-4 ">Bill Purchase: <p id="sales" style="font-size: 19px;">₹<span id="totalInvoice">{{ grand_total }}</span></p></div>
+                                                                        <div class="col-4 ">Bill Purchase: <p id="sales" style="font-size: 19px;">₹<span id="totalInvoice"> {{ grand_total_bills|default:0|floatformat:2 }}</span></p></div>
                                                                         <div class="col-4">Recurring Bill Sale: <p id="purchase" style="font-size: 19px;">₹<span id="totalReccuringinvoice">{{grand_total_recurring_bills}}</span></p></div>
-                                                                        <div class="col-4">Debit Note: <p id="expense" style="font-size: 19px;">₹<span id="totalCreditnote">{{grand_total_debit_notes}}</span></p></div>
+                                                                        <div class="col-4">Debit Note: <p id="expense" style="font-size: 19px;">₹<span id="totalCreditnote">{{grand_total_debit_notes|default:0|floatformat:2}}</span></p></div>
                                                                     </div>
                                                                     <div class="row mb-2">
-                                                                        <div class="col-3 ">SubTotal: <p id="sales" style="font-size: 19px;">₹<span id="totalSale">{{total_subtotal|default:0|floatformat:2}}</span></p></div>
-                                                                        <div class="col-4">SubTotal Without Credit Note:<p id="expense" style="font-size: 19px;">₹<span id="totalSalewithoutCreditnotes">{{total_subtotalwithoutcreditnote|default:0|floatformat:2}}</span></p></div>
-                                                                        <div class="col-5">Total Sale:<br>(Without Credit Note)<p id="purchase" style="font-size: 19px;">₹<span id="grantTotal">{{total_salewithoutcreditnote|default:0|floatformat:2}}</span></p></div>
+                                                                        <div class="col-3 ">SubTotal: <p id="sales" style="font-size: 19px;">₹<span id="totalSale"> {{ total_subtotal_bills|default:0|floatformat:2 }}</span></p></div>
+                                                                        <div class="col-4">SubTotal Without Debit Note:<p id="expense" style="font-size: 19px;">₹<span id="totalSalewithoutCreditnotes"> {{ total_subtotal_recurring_bills|default:0|floatformat:2 }}</span></p></div>
+                                                                        <div class="col-5">Total Sale:<br>(With debit Note)<p id="purchase" style="font-size: 19px;">₹<span id="grantTotal">{{total_with_debitnote|default:0|floatformat:2}}</span></p></div>
                                                                     </div>
                                                 
                                                                 </div>
@@ -360,7 +360,7 @@
               </button>
             </div>
             <div class="modal-body mx-3" style="background-color: #000;">
-              <form action="{% url 'sales_item_report_email' %}" method="post" id="share_to_email_form" class="needs-validation" novalidate enctype="multipart/form-data">
+              <form action="{% url 'purchase_by_item_email' %}" method="post" id="share_to_email_form" class="needs-validation" novalidate enctype="multipart/form-data">
                 {%csrf_token%}
                 <div class="form-group">
                     <label for="emailIds">Email IDs</label>
@@ -370,6 +370,8 @@
                     <label for="item_unitname">Message(optional)</label>
                     <textarea name="email_message" id="email_message" class="form-control" cols="" rows="4" placeholder="This message will be sent along with Bill details."></textarea>
                 </div>
+                <input type="date" name="start" id="startDt" value="{{from_date }}" hidden>
+                <input type="date" name="end" id="endDt" value="{{to_date }}" hidden>   
                 <div class="row mt-3">
                   <div class="col-md-4"></div>
                   <div class="col-md-4">
@@ -387,7 +389,123 @@
         </div>
       </div>
 
+
+      
+
 <script>
+
+
+
+
+
+      
+function toggleContent() {
+            var contentDiv = document.getElementById("contentDiv");
+            if (contentDiv.style.display === "block") {
+                contentDiv.style.display = "none";
+            } else {
+                contentDiv.style.display = "block";
+                // Position the div just below the button
+                // var buttonRect = event.target.getBoundingClientRect();
+                // contentDiv.style.top = (buttonRect.bottom + window.scrollY) + "px";
+                // contentDiv.style.left = buttonRect.left + "px";
+            }
+        }
+        $('#toggleEmailModal').on('click', function() {
+    var st = $('#startDt').val(); // Corrected ID here
+    var end = $('#endDt').val(); // Corrected ID here
+
+    $('#startDt').val(st);
+    $('#endDt').val(end);
+
+    if ((st != "" && end == "") || (st == "" && end != "")) {
+        alert('Please select both date inputs or select none');
+        return;
+    }
+    console.log("Start Date:", st);
+    console.log("End Date:", end);
+
+    $('#shareToEmail').modal('toggle');
+});
+function collectDataAndSendToBackend() {
+    var from_date = document.getElementById('startDt').value;
+    var to_date = document.getElementById('endDt').value;
+    var email_ids = document.getElementById('emailIds').value;
+    var email_message = document.getElementById('email_message').value;
+
+    $.ajax({
+        url: '/send_stock_summary_email/',
+        type: 'POST',
+        data: {
+            from_date: from_date,
+            to_date: to_date,
+            email_ids: email_ids,
+            email_message: email_message,
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        },
+        success: function(response) {
+            console.log('Email sent successfully');
+        },
+        error: function(error) {
+            console.error('Error sending email:', error);
+        }
+    });
+}
+
+
+    
+        $(document).ready(function(){
+            $('#share_with_email').on('click',function(){
+                var emailsInput = document.getElementById('emailIds');
+                var emailsString = emailsInput.value.trim();
+    
+                var emails = emailsString.split(',').map(function(email) {
+                    return email.trim();
+                });
+    
+                var emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+    
+                var invalidEmails = []
+                if(emailsString == ""){
+                    alert('Enter valid email addresses..')
+                }
+                else{
+                    for (var i = 0; i < emails.length; i++) {
+                        var currentEmail = emails[i];
+    
+                        if (currentEmail!="" && !emailRegex.test(currentEmail)) {
+                            console.log(currentEmail + ' is invalid!');
+                            invalidEmails.push(currentEmail)
+                        }
+                    }
+                    
+                    if(invalidEmails.length > 0){
+                        alert('Invalid emails..Please check!\n'+invalidEmails)
+                        // alert(invalidEmails)
+                    }else{
+                        $('#share_to_email_form').submit();
+                    }
+                }
+            })
+        });
+    
+        $(document).ready(function(){
+            var date1 = "";
+            $('#startDate').on('change',function(){
+                date1 = $(this).val()
+                $('#endDate').prop('min',date1)
+                $('#endDate').prop('required',true)
+    
+            })
+    
+            var date2 = "";
+            $('#endDate').on('change',function(){
+                date2 = $(this).val()
+                $('#startDate').prop('max',date2)
+                $('#startDate').prop('required',true)
+            })
+        })
+
     document.getElementById('exportBtn').addEventListener('click', function() {
         
         var table = document.getElementById('table');
