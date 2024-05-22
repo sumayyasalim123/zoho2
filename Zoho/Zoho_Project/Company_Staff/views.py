@@ -43064,120 +43064,76 @@ def shareREC_billDetailsReportToEmail(request):
 
 
 
-
 def purchase_by_item(request):
     if 'login_id' in request.session:
         log_id = request.session['login_id']
-        log_details= LoginDetails.objects.get(id=log_id)
+        log_details = LoginDetails.objects.get(id=log_id)
+
         if log_details.user_type == 'Company':
-            cmp = CompanyDetails.objects.get(login_details = log_details)
-            
-            
+            cmp = CompanyDetails.objects.get(login_details=log_details)
             dash_details = CompanyDetails.objects.get(login_details=log_details)
         else:
-            cmp = StaffDetails.objects.get(login_details = log_details).company
-            
+            cmp = StaffDetails.objects.get(login_details=log_details).company
             dash_details = StaffDetails.objects.get(login_details=log_details)
 
-        # rec = RecurringInvoice.objects.filter(company = cmp)
-        allmodules= ZohoModules.objects.get(company = cmp)
-        recurring_items_summary = Reccurring_Invoice_item.objects.filter(company=cmp).values('item__item_name').annotate(
-        item_name=Max('item__item_name'),
-        total_count=Sum('quantity'),
-        price=Sum('price') / Count('item__item_name'),
-        
-         )
-        for summary in recurring_items_summary:
-            summary['total_amount'] = summary['total_count'] * summary['price']
+        allmodules = ZohoModules.objects.get(company=cmp)
+        purchase_items = PurchaseOrderItems.objects.filter(company=cmp)
 
+        # Create a dictionary to hold aggregated data for each item
+        aggregated_items = {}
 
-    
-        invoice_items_summary = invoiceitems.objects.filter(company=cmp).values('Items__item_name').annotate(
-        item_name=Max('Items__item_name'),
-        total_count=Sum('quantity'),
-        price=Sum('price') / Count('Items__item_name'),
-        
-        )
-        for summary in invoice_items_summary:
-            summary['total_amount'] = summary['total_count'] * summary['price']
-
-        credit_note_items_summary = Credit_Note_Items.objects.filter(company=cmp).values('items__item_name').annotate(
-        item_name=Max('items__item_name'),
-        total_count=Sum('quantity'),
-        price=Sum('price') / Count('items__item_name'),
-    )
-
-        for summary in credit_note_items_summary:
-            summary['total_amount'] = summary['total_count'] * summary['price']
-        credit_note_counts = {summary['item_name']: summary['total_count'] for summary in credit_note_items_summary}
-
-        combined_summary = list(recurring_items_summary) + list(invoice_items_summary)
-        unique_items = defaultdict(lambda: {'total_count': 0, 'price': 0})
-
-        
-        for summary in combined_summary:
-                item_name = summary['item_name']
-                unique_items[item_name]['total_count'] += summary['total_count']
-                unique_items[item_name]['price'] = summary['price']  
-
-            
-        combined_summary_with_total_qty = []
-        for item_name, item_info in unique_items.items():
-                combined_summary_with_total_qty.append({
+        for item in purchase_items:
+            item_name = item.item.item_name if item.item else ''
+            if item_name in aggregated_items:
+                aggregated_items[item_name]['quantity'] += item.quantity
+                aggregated_items[item_name]['total_amount'] += item.price * item.quantity
+            else:
+                aggregated_items[item_name] = {
                     'item_name': item_name,
-                    'total_count': item_info['total_count'],
-                    'price': item_info['price'],
-                    'total_amount': item_info['total_count'] * item_info['price']
-                })
+                    'quantity': item.quantity,
+                    'price': item.price,
+                    'total_amount': item.price * item.quantity
+                    
+                }
+
+        # Convert the aggregated data into a list for context
+        purchase_items_with_totals = list(aggregated_items.values())
+
+        total_quantity = purchase_items.aggregate(total_quantity=Sum('quantity'))['total_quantity']
+
+        grand_total = purchase_items.aggregate(grand_total=Sum('total'))['grand_total']
+
+
+        recurring_bills = Recurring_bills.objects.filter(company=cmp)
+        grand_total_recurring_bills = recurring_bills.aggregate(grand_total=Sum('total'))['grand_total']
 
         
 
-
-        for summary in combined_summary_with_total_qty:
-            item_name = summary['item_name']
-            if item_name in credit_note_counts:
-                # Subtract credit note count from combined summary count
-                summary['total_count'] -= credit_note_counts[item_name]
+        debit_notes = debitnote.objects.filter(company=cmp)
+        grand_total_debit_notes = debit_notes.aggregate(grand_total=Sum('grandtotal'))['grand_total']
 
 
-        
+        grand_total = Decimal(grand_total or 0)
+        grand_total_recurring_bills = Decimal(grand_total_recurring_bills or 0)
+        grand_total_debit_notes = Decimal(grand_total_debit_notes or 0)
 
-        # Calculate total quantity
-        total_qty_recurring = sum(summary['total_count'] for summary in recurring_items_summary)
-        total_qty_invoice = sum(summary['total_count'] for summary in invoice_items_summary)
-        total_qty_credit_note = sum(summary['total_count'] for summary in credit_note_items_summary)
-        total_qty = total_qty_recurring + total_qty_invoice
-
-        #claculate sale total in invoice and rec invoice,credit note
-        total_sale_recurring = sum(summary['total_amount'] for summary in recurring_items_summary)
-        total_sale_invoice = sum(summary['total_amount'] for summary in invoice_items_summary)
-        total_sale_credit_note = sum(summary['total_amount'] for summary in credit_note_items_summary)
-
-        total_sale = total_sale_invoice + total_sale_recurring - total_sale_credit_note
-        # total of subtotal in invoice and rec invoice table
-        total_subtotal_invoice = invoice.objects.filter(company=cmp).aggregate(total_subtotal=Sum('sub_total'))['total_subtotal'] or 0
-
-    # Calculate total subtotal for recurring invoices
-        total_subtotal_recurring_invoice = RecurringInvoice.objects.filter(company=cmp).aggregate(total_subtotal=Sum('subtotal'))['total_subtotal'] or 0
-        total_subtotal_credit_note = Credit_Note.objects.filter(company=cmp).aggregate(total_subtotal=Sum('sub_total'))['total_subtotal'] or 0
-    # Total of subtotal for both invoices and recurring invoices
-        total_subtotal = total_subtotal_invoice + total_subtotal_recurring_invoice - total_subtotal_credit_note
-        total_subtotal_withoutcreditnote = total_subtotal_invoice + total_subtotal_recurring_invoice
-
-        total_salewithoutcreditnote = total_sale_invoice + total_sale_recurring
-
-    
-        
-
+        # Calculate the total sale
+        total_purchase = (grand_total + grand_total_recurring_bills) - grand_total_debit_notes
 
 
         
         context = {
-             'allmodules':allmodules, 'details':dash_details,'log_details':log_details,'combined_summary':combined_summary_with_total_qty,'cmp':cmp,
-        'total_qty':total_qty,'tsr':total_sale_recurring,'tsi':total_sale_invoice,'tsc':total_sale_credit_note,
-        'total_sale':total_sale,'total_subtotal':total_subtotal,'total_subtotalwithoutcreditnote':total_subtotal_withoutcreditnote,
-        'total_salewithoutcreditnote':total_salewithoutcreditnote
+            'allmodules': allmodules,
+            'details': dash_details,
+            'log_details': log_details,
+            'purchase_items_with_totals': purchase_items_with_totals,
+            'grand_total': grand_total,
+            'total_quantity': total_quantity,
+            'grand_total_recurring_bills': grand_total_recurring_bills,
+            'grand_total_debit_notes': grand_total_debit_notes,
+            'total_purchase': total_purchase,
+            
         }
         return render(request, 'zohomodules/Reports/purchase_by_item.html', context)
     else:
-        return redirect('/')        
+        return redirect('/')
