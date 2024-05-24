@@ -43099,7 +43099,7 @@ def purchase_by_item(request):
         # Convert the aggregated data into a list for context
         purchase_items_with_totals = list(aggregated_items.values())
 
-        total_quantity = purchase_items.aggregate(total_quantity=Sum('quantity'))['total_quantity']
+        total_quantity = PurchaseOrder.objects.count()
 
         grand_total = purchase_items.aggregate(grand_total=Sum('total'))['grand_total']
 
@@ -43207,18 +43207,17 @@ def customize_purchasebyitem(request):
             item_name = item.item.item_name if item.item else ''
             if item_name in aggregated_items:
                 aggregated_items[item_name]['quantity'] += item.quantity
-                aggregated_items[item_name]['total_amount'] += item.total
+                aggregated_items[item_name]['total_amount'] += item.price * item.quantity
             else:
                 aggregated_items[item_name] = {
                     'item_name': item_name,
                     'quantity': item.quantity,
                     'price': item.price,
-                    'total_amount': item.total
+                    'total_amount': item.price * item.quantity
                 }
 
         purchase_items_with_totals = list(aggregated_items.values())
-
-        total_quantity = purchase_items.aggregate(total_quantity=Sum('quantity'))['total_quantity']
+        total_quantity = PurchaseOrder.objects.count()
         grand_total = purchase_items.aggregate(grand_total=Sum('total'))['grand_total']
 
         grand_total_bills = bills.aggregate(grand_total=Sum('Grand_Total'))['grand_total']
@@ -43252,8 +43251,9 @@ def customize_purchasebyitem(request):
             'total_subtotal_recurring_bills': total_subtotal_recurring_bills,
             'total_purchase': total_purchase,
             'total_with_debitnote':total_with_debitnote,
-            'from_date': from_date if 'from_date' in locals() else None,
-            'to_date': to_date if 'to_date' in locals() else None,
+           'from_date': from_date,
+             'to_date': to_date,
+
             'debit_notes': debit_notes,  # Add debit notes to context
         }
         return render(request, 'zohomodules/Reports/purchase_by_item.html', context)
@@ -43275,6 +43275,7 @@ def purchase_by_item_email(request):
             dash_details = StaffDetails.objects.get(login_details=log_details)
 
         allmodules = ZohoModules.objects.filter(company=cmp, status='New')
+        
 
         try:
             if request.method == 'POST':
@@ -43283,12 +43284,23 @@ def purchase_by_item_email(request):
                 email_message = request.POST['email_message']
                 from_date = request.POST['start']
                 to_date = request.POST['end']
+                    
+                
 
+
+              
                 if from_date and to_date:
+                    from_date = timezone.make_aware(datetime.strptime(from_date, '%Y-%m-%d'))
+                    to_date = timezone.make_aware(datetime.strptime(to_date, '%Y-%m-%d'))
+
+                    print("Parsed from_date:", from_date)
+                    print("Parsed to_date:", to_date)
                     purchase_items = PurchaseOrderItems.objects.filter(
                         company=cmp, purchase_order__purchase_order_date__range=[from_date, to_date]
                     )
                     bills = Bill.objects.filter(Company=cmp, Bill_Date__range=[from_date, to_date])
+
+
                     recurring_bills = Recurring_bills.objects.filter(company=cmp, rec_bill_date__range=[from_date, to_date])
                     debit_notes = debitnote.objects.filter(company=cmp, debitnote_date__range=[from_date, to_date])
                 else:
@@ -43302,17 +43314,18 @@ def purchase_by_item_email(request):
                     item_name = item.item.item_name if item.item else ''
                     if item_name in aggregated_items:
                         aggregated_items[item_name]['quantity'] += item.quantity
-                        aggregated_items[item_name]['total_amount'] += item.total
+                        aggregated_items[item_name]['total_amount'] += item.price * item.quantity
                     else:
                         aggregated_items[item_name] = {
                             'item_name': item_name,
                             'quantity': item.quantity,
                             'price': item.price,
-                            'total_amount': item.total
+                            'total_amount': item.price * item.quantity
                         }
 
                 purchase_items_with_totals = list(aggregated_items.values())
-                total_quantity = purchase_items.aggregate(total_quantity=Sum('quantity'))['total_quantity']
+                total_quantity = PurchaseOrder.objects.count()
+
                 grand_total = purchase_items.aggregate(grand_total=Sum('total'))['grand_total']
 
                 grand_total_bills = bills.aggregate(grand_total=Sum('Grand_Total'))['grand_total']
@@ -43350,7 +43363,7 @@ def purchase_by_item_email(request):
                     'log_details': log_details,
                 }
 
-                template_path = 'zohomodules/Reports/purchase_by_items_pdf.html'
+                template_path = 'zohomodules/Reports/purchase_by_item_pdf.html'
                 template = get_template(template_path)
 
                 html = template.render(context)
