@@ -95,12 +95,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in purchase_items_with_totals %}
+                        {% for item in combined_items %}
                         <tr>
-                            <td class="text-center">{{ item.item_name }}</td>
-                            <td class="text-center">{{ item.quantity }}</td>
-                            <td class="text-center">Rs. {{ item.price }}</td>
-                            <td class="text-center">Rs. {{ item.total_amount }}</td>
+                          <td>{{ item.item_name }}</td>
+                          <td>{{ item.quantity }}</td>
+                          <td>{{ item.price }}</td>
+                          <td>{{ item.amount }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -111,7 +111,7 @@
                 <div class="row p-4">
                     <div class="col-10">
                         <div class="row mb-2">
-                            <div class="col-4">Total Items : <p style="font-size: 19px;">{{total_quantity|default:0}}</p>
+                            <div class="col-4">Total Items : <p style="font-size: 19px;">combined_item_count</p>
                             </div>
                         </div>
                         <table style="border: none;">

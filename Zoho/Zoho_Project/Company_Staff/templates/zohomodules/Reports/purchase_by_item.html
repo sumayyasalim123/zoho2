@@ -305,12 +305,12 @@
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {% for item in purchase_items_with_totals %}
+                                                                    {% for item in combined_items %}
                                                                     <tr>
-                                                                        <td class="text-center">{{ item.item_name }}</td>
-                                                                        <td class="text-center">{{ item.quantity }}</td>
-                                                                        <td class="text-center">Rs. {{ item.price }}</td>
-                                                                        <td class="text-center">Rs. {{ item.total_amount }}</td>
+                                                                      <td>{{ item.item_name }}</td>
+                                                                      <td>{{ item.quantity }}</td>
+                                                                      <td>{{ item.price }}</td>
+                                                                      <td>{{ item.amount }}</td>
                                                                     </tr>
                                                                     {% endfor %}
                                                                 </tbody>
@@ -321,7 +321,7 @@
                                                             <div class="row p-4">
                                                                 <div class="col-10">
                                                                     <div class="row mb-2">
-                                                                        <div class="col-4">Total Items : <p style="font-size: 19px;"> {{ total_quantity }}</p>
+                                                                        <div class="col-4">Total Items : <p style="font-size: 19px;">{{combined_item_count}}</p>
                                                                         </div><br><br>
                                                                     </div>
                                                                     <div class="row mb-2">
@@ -372,11 +372,10 @@
                     <label for="item_unitname">Message(optional)</label>
                     <textarea name="email_message" id="email_message" class="form-control" cols="" rows="4" placeholder="This message will be sent along with Bill details."></textarea>
                 </div>
-                <input type="date" name="start" id="startDt" value="{{ from_date|date:'Y-m-d' }}">
-<input type="date" name="end" id="endDt" value="{{ to_date|date:'Y-m-d' }}">
+                <input type="date" name="start" id="startDt" value="{{ from_date|date:'Y-m-d' }}" hidden>
+<input type="date" name="end" id="endDt" value="{{ to_date|date:'Y-m-d' }}" hidden>
 
-                <p>Start Date: {{ from_date }}</p>
-                <p>End Date: {{ to_date }}</p>
+              
   
                 <div class="row mt-3">
                   <div class="col-md-4"></div>
@@ -495,7 +494,7 @@
     
             var wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-            XLSX.writeFile(wb, 'Sales_item_Report.xlsx');
+            XLSX.writeFile(wb, 'purchase_item_Report.xlsx');
         }
     
     
@@ -545,7 +544,7 @@
         totalSaleElement.style.fontWeight = 'bold';
         var opt = {
             margin: [1, 1, 1, 1], 
-            filename: 'Sales_By_Item_Report_' + '.pdf',
+            filename: 'purchase_By_Item_Report_' + '.pdf',
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 3 }, 
             jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }

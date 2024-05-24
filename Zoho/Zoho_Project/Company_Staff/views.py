@@ -43077,31 +43077,45 @@ def purchase_by_item(request):
             dash_details = StaffDetails.objects.get(login_details=log_details)
 
         allmodules = ZohoModules.objects.get(company=cmp)
-        purchase_items = PurchaseOrderItems.objects.filter(company=cmp)
+       
 
-        # Create a dictionary to hold aggregated data for each item
-        aggregated_items = {}
+       
 
-        for item in purchase_items:
-            item_name = item.item.item_name if item.item else ''
-            if item_name in aggregated_items:
-                aggregated_items[item_name]['quantity'] += item.quantity
-                aggregated_items[item_name]['total_amount'] += item.price * item.quantity
-            else:
-                aggregated_items[item_name] = {
-                    'item_name': item_name,
-                    'quantity': item.quantity,
-                    'price': item.price,
-                    'total_amount': item.price * item.quantity
-                    
-                }
+        recurr_items = RecurrItemsList.objects.filter(recurr_bill_id__company=cmp)
+        bill_items = BillItems.objects.filter(Company=cmp)
+        debitnote_items = debitnote_item.objects.filter(company=cmp)
 
-        # Convert the aggregated data into a list for context
-        purchase_items_with_totals = list(aggregated_items.values())
+        # Grouping and aggregating data from all three tables
+        combined_items = []
 
-        total_quantity = PurchaseOrder.objects.count()
+        # Process RecurrItemsList
+        for item in recurr_items:
+            combined_items.append({
+                'item_name': item.item_name,
+                'quantity': item.qty,
+                'price': item.price,
+                'amount': item.qty * item.price
+            })
 
-        grand_total = purchase_items.aggregate(grand_total=Sum('total'))['grand_total']
+        # Process BillItems
+        for item in bill_items:
+            combined_items.append({
+                'item_name': item.item_name,
+                'quantity': item.qty,
+                'price': item.price,
+                'amount': item.qty * item.price
+            })
+
+        # Process debitnote_items
+        for item in debitnote_items:
+            combined_items.append({
+                'item_name': item.item.item_name,
+                'quantity': item.quantity,
+                'price': item.price,
+                'amount': item.quantity * item.price
+            })
+
+        combined_item_count = len(combined_items) 
 
         grand_total_bills = Bill.objects.filter(Company=cmp).aggregate(grand_total=Sum('Grand_Total'))['grand_total']
 
@@ -43121,7 +43135,7 @@ def purchase_by_item(request):
         total_subtotal_recurring_bills = recurring_bills.aggregate(total_subtotal=Sum('sub_total'))['total_subtotal']
 
 
-        grand_total = Decimal(grand_total or 0)
+       
         grand_total_recurring_bills = Decimal(grand_total_recurring_bills or 0)
         grand_total_debit_notes = Decimal(grand_total_debit_notes or 0)
         total_subtotal_bills = Decimal(total_subtotal_bills or 0)
@@ -43137,12 +43151,12 @@ def purchase_by_item(request):
 
         
         context = {
+            'combined_items': combined_items,
+            'combined_item_count': combined_item_count,
             'allmodules': allmodules,
             'details': dash_details,
             'log_details': log_details,
-            'purchase_items_with_totals': purchase_items_with_totals,
-            'grand_total': grand_total,
-            'total_quantity': total_quantity,
+
             'grand_total_recurring_bills': grand_total_recurring_bills,
             'grand_total_debit_notes': grand_total_debit_notes,
             'total_subtotal_bills': total_subtotal_bills,
@@ -43188,37 +43202,52 @@ def customize_purchasebyitem(request):
             from_date = datetime.strptime(from_date, '%Y-%m-%d')
             to_date = datetime.strptime(to_date, '%Y-%m-%d')
             
-            purchase_items = PurchaseOrderItems.objects.filter(
-                company=cmp, purchase_order__purchase_order_date__range=[from_date, to_date]
-            )
+            
             
             bills = Bill.objects.filter(Company=cmp, Bill_Date__range=[from_date, to_date])
             recurring_bills = Recurring_bills.objects.filter(company=cmp, rec_bill_date__range=[from_date, to_date])
             debit_notes = debitnote.objects.filter(company=cmp,  debitnote_date__range=[from_date, to_date])
         else:
-            purchase_items = PurchaseOrderItems.objects.filter(company=cmp)
+           
             bills = Bill.objects.filter(Company=cmp)
             recurring_bills = Recurring_bills.objects.filter(company=cmp)
             debit_notes = debitnote.objects.filter(company=cmp)
         
-        aggregated_items = {}
+        recurr_items = RecurrItemsList.objects.filter(recurr_bill_id__company=cmp, recurr_bill_id__rec_bill_date__range=[from_date, to_date])
+        bill_items = BillItems.objects.filter(Bills__Company=cmp, Bills__Bill_Date__range=[from_date, to_date])
+        debitnote_items = debitnote_item.objects.filter(debit_note__company=cmp, debit_note__debitnote_date__range=[from_date, to_date])
 
-        for item in purchase_items:
-            item_name = item.item.item_name if item.item else ''
-            if item_name in aggregated_items:
-                aggregated_items[item_name]['quantity'] += item.quantity
-                aggregated_items[item_name]['total_amount'] += item.price * item.quantity
-            else:
-                aggregated_items[item_name] = {
-                    'item_name': item_name,
-                    'quantity': item.quantity,
-                    'price': item.price,
-                    'total_amount': item.price * item.quantity
-                }
+        # Grouping and aggregating data from all three tables
+        combined_items = []
 
-        purchase_items_with_totals = list(aggregated_items.values())
-        total_quantity = PurchaseOrder.objects.count()
-        grand_total = purchase_items.aggregate(grand_total=Sum('total'))['grand_total']
+        # Process RecurrItemsList
+        for item in recurr_items:
+            combined_items.append({
+                'item_name': item.item_name,
+                'quantity': item.qty,
+                'price': item.price,
+                'amount': item.qty * item.price
+            })
+
+        # Process BillItems
+        for item in bill_items:
+            combined_items.append({
+                'item_name': item.item_name,
+                'quantity': item.qty,
+                'price': item.price,
+                'amount': item.qty * item.price
+            })
+
+        # Process debitnote_items
+        for item in debitnote_items:
+            combined_items.append({
+                'item_name': item.item.item_name,
+                'quantity': item.quantity,
+                'price': item.price,
+                'amount': item.quantity * item.price
+            })
+
+        combined_item_count = len(combined_items)
 
         grand_total_bills = bills.aggregate(grand_total=Sum('Grand_Total'))['grand_total']
         grand_total_recurring_bills = recurring_bills.aggregate(grand_total=Sum('total'))['grand_total']
@@ -43226,7 +43255,7 @@ def customize_purchasebyitem(request):
         total_subtotal_bills = bills.aggregate(total_subtotal=Sum('Sub_Total'))['total_subtotal']
         total_subtotal_recurring_bills = recurring_bills.aggregate(total_subtotal=Sum('sub_total'))['total_subtotal']
 
-        grand_total = Decimal(grand_total or 0)
+     
         grand_total_recurring_bills = Decimal(grand_total_recurring_bills or 0)
         grand_total_debit_notes = Decimal(grand_total_debit_notes or 0)
         total_subtotal_bills = Decimal(total_subtotal_bills or 0)
@@ -43237,13 +43266,15 @@ def customize_purchasebyitem(request):
         total_with_debitnote = (grand_total_bills + grand_total_recurring_bills ) + grand_total_debit_notes
 
         context = {
+             'combined_items': combined_items,
+              'combined_item_count': combined_item_count,
              'cmp':cmp,
             'allmodules': allmodules,
             'details': dash_details,
             'log_details': log_details,
-            'purchase_items_with_totals': purchase_items_with_totals,
-            'grand_total': grand_total,
-            'total_quantity': total_quantity,
+           
+         
+           
             'grand_total_bills': grand_total_bills,
             'grand_total_recurring_bills': grand_total_recurring_bills,
             'grand_total_debit_notes': grand_total_debit_notes,
@@ -43263,6 +43294,9 @@ def customize_purchasebyitem(request):
 
 
 
+
+
+
 def purchase_by_item_email(request):
     if 'login_id' in request.session:
         log_id = request.session['login_id']
@@ -43275,7 +43309,6 @@ def purchase_by_item_email(request):
             dash_details = StaffDetails.objects.get(login_details=log_details)
 
         allmodules = ZohoModules.objects.filter(company=cmp, status='New')
-        
 
         try:
             if request.method == 'POST':
@@ -43284,49 +43317,59 @@ def purchase_by_item_email(request):
                 email_message = request.POST['email_message']
                 from_date = request.POST['start']
                 to_date = request.POST['end']
-                    
-                
 
-
-              
                 if from_date and to_date:
                     from_date = timezone.make_aware(datetime.strptime(from_date, '%Y-%m-%d'))
                     to_date = timezone.make_aware(datetime.strptime(to_date, '%Y-%m-%d'))
 
                     print("Parsed from_date:", from_date)
                     print("Parsed to_date:", to_date)
-                    purchase_items = PurchaseOrderItems.objects.filter(
-                        company=cmp, purchase_order__purchase_order_date__range=[from_date, to_date]
-                    )
+                   
                     bills = Bill.objects.filter(Company=cmp, Bill_Date__range=[from_date, to_date])
-
 
                     recurring_bills = Recurring_bills.objects.filter(company=cmp, rec_bill_date__range=[from_date, to_date])
                     debit_notes = debitnote.objects.filter(company=cmp, debitnote_date__range=[from_date, to_date])
                 else:
-                    purchase_items = PurchaseOrderItems.objects.filter(company=cmp)
                     bills = Bill.objects.filter(Company=cmp)
                     recurring_bills = Recurring_bills.objects.filter(company=cmp)
                     debit_notes = debitnote.objects.filter(company=cmp)
 
-                aggregated_items = {}
-                for item in purchase_items:
-                    item_name = item.item.item_name if item.item else ''
-                    if item_name in aggregated_items:
-                        aggregated_items[item_name]['quantity'] += item.quantity
-                        aggregated_items[item_name]['total_amount'] += item.price * item.quantity
-                    else:
-                        aggregated_items[item_name] = {
-                            'item_name': item_name,
-                            'quantity': item.quantity,
-                            'price': item.price,
-                            'total_amount': item.price * item.quantity
-                        }
+                recurr_items = RecurrItemsList.objects.filter(recurr_bill_id__company=cmp, recurr_bill_id__rec_bill_date__range=[from_date, to_date])
+                bill_items = BillItems.objects.filter(Bills__Company=cmp, Bills__Bill_Date__range=[from_date, to_date])
+                debitnote_items = debitnote_item.objects.filter(debit_note__company=cmp, debit_note__debitnote_date__range=[from_date, to_date])
 
-                purchase_items_with_totals = list(aggregated_items.values())
-                total_quantity = PurchaseOrder.objects.count()
+                # Grouping and aggregating data from all three tables
+                combined_items = []
 
-                grand_total = purchase_items.aggregate(grand_total=Sum('total'))['grand_total']
+                # Process RecurrItemsList
+                for item in recurr_items:
+                    combined_items.append({
+                        'item_name': item.item_name,
+                        'quantity': item.qty,
+                        'price': item.price,
+                        'amount': item.qty * item.price
+                    })
+
+                # Process BillItems
+                for item in bill_items:
+                    combined_items.append({
+                        'item_name': item.item_name,
+                        'quantity': item.qty,
+                        'price': item.price,
+                        'amount': item.qty * item.price
+                    })
+
+                # Process debitnote_items
+                for item in debitnote_items:
+                    combined_items.append({
+                        'item_name': item.item.item_name,
+                        'quantity': item.quantity,
+                        'price': item.price,
+                        'amount': item.quantity * item.price
+                    })
+
+
+                combined_item_count = len(combined_items)
 
                 grand_total_bills = bills.aggregate(grand_total=Sum('Grand_Total'))['grand_total']
                 grand_total_recurring_bills = recurring_bills.aggregate(grand_total=Sum('total'))['grand_total']
@@ -43334,7 +43377,6 @@ def purchase_by_item_email(request):
                 total_subtotal_bills = bills.aggregate(total_subtotal=Sum('Sub_Total'))['total_subtotal']
                 total_subtotal_recurring_bills = recurring_bills.aggregate(total_subtotal=Sum('sub_total'))['total_subtotal']
 
-                grand_total = Decimal(grand_total or 0)
                 grand_total_recurring_bills = Decimal(grand_total_recurring_bills or 0)
                 grand_total_debit_notes = Decimal(grand_total_debit_notes or 0)
                 total_subtotal_bills = Decimal(total_subtotal_bills or 0)
@@ -43345,9 +43387,8 @@ def purchase_by_item_email(request):
                 total_with_debitnote = (grand_total_bills + grand_total_recurring_bills) + grand_total_debit_notes
 
                 context = {
-                    'purchase_items_with_totals': purchase_items_with_totals,
-                    'grand_total': grand_total,
-                    'total_quantity': total_quantity,
+                      'combined_items': combined_items,
+              'combined_item_count': combined_item_count,
                     'grand_total_bills': grand_total_bills,
                     'grand_total_recurring_bills': grand_total_recurring_bills,
                     'grand_total_debit_notes': grand_total_debit_notes,
