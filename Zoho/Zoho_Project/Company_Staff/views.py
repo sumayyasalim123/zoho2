@@ -43082,8 +43082,8 @@ def purchase_by_item(request):
        
 
         recurr_items = RecurrItemsList.objects.filter(recurr_bill_id__company=cmp)
-        bill_items = BillItems.objects.filter(Company=cmp)
-        debitnote_items = debitnote_item.objects.filter(company=cmp)
+        bill_items = BillItems.objects.filter(Bills__Company=cmp)
+        debitnote_items = debitnote_item.objects.filter(debit_note__company=cmp)
 
         # Grouping and aggregating data from all three tables
         combined_items = []
@@ -43091,7 +43091,7 @@ def purchase_by_item(request):
         # Process RecurrItemsList
         for item in recurr_items:
             combined_items.append({
-                'item_name': item.item_name,
+                'item_name': item.item_id.item_name,
                 'quantity': item.qty,
                 'price': item.price,
                 'amount': item.qty * item.price
@@ -43100,7 +43100,7 @@ def purchase_by_item(request):
         # Process BillItems
         for item in bill_items:
             combined_items.append({
-                'item_name': item.item_name,
+                'item_name': item.item_id.item_name,
                 'quantity': item.qty,
                 'price': item.price,
                 'amount': item.qty * item.price
@@ -43223,7 +43223,7 @@ def customize_purchasebyitem(request):
         # Process RecurrItemsList
         for item in recurr_items:
             combined_items.append({
-                'item_name': item.item_name,
+                'item_name': item.item_id.item_name,
                 'quantity': item.qty,
                 'price': item.price,
                 'amount': item.qty * item.price
@@ -43232,7 +43232,7 @@ def customize_purchasebyitem(request):
         # Process BillItems
         for item in bill_items:
             combined_items.append({
-                'item_name': item.item_name,
+                'item_name': item.item_id.item_name,
                 'quantity': item.qty,
                 'price': item.price,
                 'amount': item.qty * item.price
@@ -43344,7 +43344,7 @@ def purchase_by_item_email(request):
                 # Process RecurrItemsList
                 for item in recurr_items:
                     combined_items.append({
-                        'item_name': item.item_name,
+                        'item_name': item.item_id.item_name,
                         'quantity': item.qty,
                         'price': item.price,
                         'amount': item.qty * item.price
@@ -43353,7 +43353,7 @@ def purchase_by_item_email(request):
                 # Process BillItems
                 for item in bill_items:
                     combined_items.append({
-                        'item_name': item.item_name,
+                        'item_name': item.item_id.item_name,
                         'quantity': item.qty,
                         'price': item.price,
                         'amount': item.qty * item.price
