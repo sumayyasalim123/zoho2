@@ -931,10 +931,10 @@ urlpatterns = [
     path('recurring_bill_details', views.recurring_bill_details, name='recurring_bill_details'),
     path('shareREC_billDetailsReportToEmail',views.shareREC_billDetailsReportToEmail, name='shareREC_billDetailsReportToEmail'),
     path('purchase_by_item/', views.purchase_by_item, name='purchase_by_item'),
+ 
     path('customize_purchasebyitem/', views.customize_purchasebyitem, name='customize_purchasebyitem'),
-
     path('purchase_by_item_email/', views.purchase_by_item_email, name='purchase_by_item_email'),
-   
+  
    
     re_path(r'^static/(?P<path>.*)$', serve,{'document_root': settings.STATIC_ROOT}),
 ]

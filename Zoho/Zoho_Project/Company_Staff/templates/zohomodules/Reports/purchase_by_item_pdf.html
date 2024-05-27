@@ -28,6 +28,7 @@
     }
 
     body {
+        text-align: center;
         font-size: 14px;
     }
 
@@ -95,14 +96,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in combined_items %}
-                        <tr>
-                          <td>{{ item.item_name }}</td>
-                          <td>{{ item.quantity }}</td>
-                          <td>{{ item.price }}</td>
-                          <td>{{ item.amount }}</td>
-                        </tr>
-                        {% endfor %}
+                        {% for item in combined_summary_with_total_qty %}
+                                                                    <tr>
+                                                                      <td>{{ item.item_name }}</td>
+                                                                      <td>{{ item.total_count }}</td>
+                                                                      <td>{{ item.price }}</td>
+                                                                      <td>{{ item.total_amount }}</td>
+                                                                    </tr>
+                                                                    {% endfor %}
                     </tbody>
                 </table>
             </section>
@@ -111,7 +112,7 @@
                 <div class="row p-4">
                     <div class="col-10">
                         <div class="row mb-2">
-                            <div class="col-4">Total Items : <p style="font-size: 19px;">combined_item_count</p>
+                            <div class="col-4">Total Items : <p style="font-size: 19px;">{{ total_combined_items }}</p>
                             </div>
                         </div>
                         <table style="border: none;">
